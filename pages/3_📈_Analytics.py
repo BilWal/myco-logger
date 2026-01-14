@@ -14,6 +14,8 @@ from pathlib import Path
 # Add parent directory to path to import database module
 sys.path.append(str(Path(__file__).parent.parent))
 import database
+from assets import get_status_icon, get_substrate_icon
+from styles import apply_custom_css, COLORS
 
 
 st.set_page_config(
@@ -21,6 +23,9 @@ st.set_page_config(
     page_icon="📈",
     layout="wide"
 )
+
+# Apply custom styling
+apply_custom_css()
 
 
 def calculate_days_to_colonization(row):
@@ -119,12 +124,12 @@ def main():
 
     if not status_counts.empty:
         color_map = {
-            'inoculating': '#2196F3',  # blue
-            'colonizing': '#FFC107',   # yellow
-            'pinning': '#9C27B0',      # purple
-            'fruiting': '#4CAF50',     # green
-            'done': '#9E9E9E',         # gray
-            'contaminated': '#F44336'  # red
+            'inoculating': COLORS['light_gray'],
+            'colonizing': COLORS['warning_yellow'],
+            'pinning': COLORS['sage_green'],
+            'fruiting': COLORS['success_green'],
+            'done': COLORS['sage_green'],
+            'contaminated': COLORS['error_red']
         }
 
         fig_status = px.pie(
@@ -134,6 +139,14 @@ def main():
             color=status_counts.index,
             color_discrete_map=color_map
         )
+
+        # Update layout with custom colors
+        fig_status.update_layout(
+            plot_bgcolor=COLORS['off_white'],
+            paper_bgcolor=COLORS['cream'],
+            font_color=COLORS['dark_brown'],
+        )
+
         st.plotly_chart(fig_status, use_container_width=True)
     else:
         st.info("No status data available")
@@ -161,18 +174,29 @@ def main():
             avg_colonization.columns = ['Substrate Type', 'Avg Days', 'Count']
             avg_colonization['Avg Days'] = avg_colonization['Avg Days'].round(1)
 
-            # Create bar chart
+            # Create bar chart with custom colors
             fig_colon = px.bar(
                 avg_colonization,
                 x='Substrate Type',
                 y='Avg Days',
                 title='Average Days to Full Colonization',
                 text='Avg Days',
-                color='Avg Days',
-                color_continuous_scale='Blues'
+                color='Substrate Type',
+                color_discrete_map={
+                    'cardboard': COLORS['terracotta'],
+                    'coffee grounds': COLORS['dark_brown'],
+                    'straw': COLORS['warning_yellow'],
+                    'sawdust pellets': COLORS['sage_green'],
+                    'mix': COLORS['sage_green'],
+                }
             )
             fig_colon.update_traces(texttemplate='%{text:.1f}', textposition='outside')
-            fig_colon.update_layout(showlegend=False)
+            fig_colon.update_layout(
+                showlegend=False,
+                plot_bgcolor=COLORS['off_white'],
+                paper_bgcolor=COLORS['cream'],
+                font_color=COLORS['dark_brown'],
+            )
 
             col1, col2 = st.columns([2, 1])
 
@@ -213,21 +237,24 @@ def main():
             name='Successful',
             x=success_data['Substrate Type'],
             y=success_data['Successful'],
-            marker_color='#4CAF50'
+            marker_color=COLORS['success_green']
         ))
 
         fig_success.add_trace(go.Bar(
             name='Contaminated',
             x=success_data['Substrate Type'],
             y=success_data['Contaminated'],
-            marker_color='#F44336'
+            marker_color=COLORS['error_red']
         ))
 
         fig_success.update_layout(
             barmode='stack',
             title='Success vs Contamination by Substrate',
             xaxis_title='Substrate Type',
-            yaxis_title='Number of Experiments'
+            yaxis_title='Number of Experiments',
+            plot_bgcolor=COLORS['off_white'],
+            paper_bgcolor=COLORS['cream'],
+            font_color=COLORS['dark_brown'],
         )
 
         col1, col2 = st.columns([2, 1])
@@ -268,15 +295,18 @@ def main():
             y=timeline_counts['Cumulative'],
             mode='lines+markers',
             name='Cumulative Experiments',
-            line=dict(color='#2196F3', width=3),
-            marker=dict(size=8)
+            line=dict(color=COLORS['sage_green'], width=3),
+            marker=dict(size=8, color=COLORS['terracotta'])
         ))
 
         fig_timeline.update_layout(
             title='Cumulative Experiments Over Time',
             xaxis_title='Date',
             yaxis_title='Total Experiments',
-            hovermode='x unified'
+            hovermode='x unified',
+            plot_bgcolor=COLORS['off_white'],
+            paper_bgcolor=COLORS['cream'],
+            font_color=COLORS['dark_brown'],
         )
 
         st.plotly_chart(fig_timeline, use_container_width=True)
