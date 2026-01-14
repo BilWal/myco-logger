@@ -7,14 +7,20 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import database
+from assets import LOGO_HEADER, get_status_icon, verify_assets
+from styles import apply_custom_css
 
 
 # Page configuration
 st.set_page_config(
-    page_title="🍄 Myco Logger",
+    page_title="Myco Logger",
     page_icon="🍄",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+# Apply custom styling
+apply_custom_css()
 
 
 def calculate_days_since_inoculation(inoculation_date):
@@ -38,8 +44,20 @@ def main():
     # Initialize database on first run
     database.init_database()
 
-    # Header
-    st.title("🍄 Myco Logger")
+    # Verify assets (show warning in sidebar if missing)
+    asset_status = verify_assets()
+    if not asset_status['all_present']:
+        with st.sidebar:
+            st.warning("⚠️ Some assets missing:")
+            for item in asset_status['missing']:
+                st.text(f"- {item}")
+
+    # Display logo header
+    try:
+        st.image(LOGO_HEADER, use_column_width=True)
+    except:
+        st.title("🍄 Myco Logger")
+
     st.markdown("""
     ### Track Your Mushroom Cultivation Experiments
     Monitor substrate performance, colonization times, and yields from inoculation to harvest.
@@ -92,51 +110,28 @@ def main():
         # Get last 5 experiments
         recent_df = df.head(5).copy()
 
-        # Calculate days since inoculation
-        recent_df['Days Since Inoculation'] = recent_df['inoculation_date'].apply(
-            calculate_days_since_inoculation
-        )
+        # Display each experiment with icons
+        for idx, row in recent_df.iterrows():
+            col1, col2, col3 = st.columns([1, 6, 2])
 
-        # Select and rename columns for display
-        display_df = recent_df[[
-            'experiment_name',
-            'substrate_type',
-            'status',
-            'inoculation_date',
-            'Days Since Inoculation'
-        ]].copy()
+            with col1:
+                # Display status icon
+                status_icon = get_status_icon(row['status'])
+                try:
+                    st.image(status_icon, width=48)
+                except:
+                    st.write("🍄")
 
-        display_df.columns = [
-            'Name',
-            'Substrate',
-            'Status',
-            'Inoculation Date',
-            'Days Elapsed'
-        ]
+            with col2:
+                st.markdown(f"**{row['experiment_name']}**")
+                st.caption(f"{row['substrate_type']} • {row['status'].title()}")
 
-        # Apply color coding to status column
-        def color_status(val):
-            colors = {
-                'inoculating': 'background-color: #e3f2fd',
-                'colonizing': 'background-color: #fff3e0',
-                'pinning': 'background-color: #f3e5f5',
-                'fruiting': 'background-color: #e8f5e9',
-                'done': 'background-color: #f5f5f5',
-                'contaminated': 'background-color: #ffebee'
-            }
-            return colors.get(val, '')
+            with col3:
+                days = calculate_days_since_inoculation(row['inoculation_date'])
+                if days is not None:
+                    st.metric("Days", days, label_visibility="collapsed")
 
-        # Display table with styling
-        styled_df = display_df.style.applymap(
-            color_status,
-            subset=['Status']
-        )
-
-        st.dataframe(
-            styled_df,
-            use_container_width=True,
-            hide_index=True
-        )
+            st.divider()
 
     else:
         st.info("No experiments yet. Add your first experiment using the '📝 Add Experiment' page in the sidebar.")

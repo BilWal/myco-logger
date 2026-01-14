@@ -11,6 +11,8 @@ from pathlib import Path
 # Add parent directory to path to import database module
 sys.path.append(str(Path(__file__).parent.parent))
 import database
+from assets import get_substrate_icon, get_status_icon, SUBSTRATE_ICONS
+from styles import apply_custom_css
 
 
 st.set_page_config(
@@ -18,6 +20,9 @@ st.set_page_config(
     page_icon="📝",
     layout="wide"
 )
+
+# Apply custom styling
+apply_custom_css()
 
 
 def validate_form(experiment_name, substrate_type, inoculation_date):
@@ -75,6 +80,18 @@ def main():
                 ],
                 help="Select the primary substrate material"
             )
+
+            # Show substrate icon preview if selected
+            if substrate_type and substrate_type != "":
+                preview_col1, preview_col2 = st.columns([1, 4])
+                with preview_col1:
+                    substrate_icon = get_substrate_icon(substrate_type)
+                    try:
+                        st.image(substrate_icon, width=64)
+                    except:
+                        st.write("📦")
+                with preview_col2:
+                    st.caption(f"Selected: {substrate_type.title()}")
 
             substrate_details = st.text_area(
                 "Substrate Details",
@@ -164,19 +181,25 @@ def main():
                     # Add to database
                     experiment_id = database.add_experiment(**experiment_data)
 
-                    # Show success message
-                    st.success(f"✅ Experiment successfully added with ID: {experiment_id}")
+                    # Show success message with celebration
                     st.balloons()
+                    st.success(f"✅ Experiment '{experiment_name}' added successfully!")
 
-                    # Show summary
-                    st.info(f"""
-                    **Experiment Summary:**
-                    - **Name:** {experiment_name}
-                    - **Substrate:** {substrate_type}
-                    - **Container:** {container_type}
-                    - **Inoculation Date:** {inoculation_date.strftime("%Y-%m-%d")}
-                    - **Status:** {status}
-                    """)
+                    # Show preview with icons
+                    summary_col1, summary_col2 = st.columns([1, 4])
+                    with summary_col1:
+                        status_icon = get_status_icon(status)
+                        try:
+                            st.image(status_icon, width=64)
+                        except:
+                            st.write("🍄")
+                    with summary_col2:
+                        st.info(f"**Experiment #{experiment_id}** is now {status}!")
+                        st.markdown(f"""
+                        - **Substrate:** {substrate_type}
+                        - **Container:** {container_type}
+                        - **Inoculation Date:** {inoculation_date.strftime("%Y-%m-%d")}
+                        """)
 
                 except Exception as e:
                     st.error(f"❌ Error adding experiment: {str(e)}")

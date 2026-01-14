@@ -12,6 +12,8 @@ from pathlib import Path
 # Add parent directory to path to import database module
 sys.path.append(str(Path(__file__).parent.parent))
 import database
+from assets import get_status_icon, get_substrate_icon
+from styles import apply_custom_css, get_status_color
 
 
 st.set_page_config(
@@ -19,6 +21,9 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
+
+# Apply custom styling
+apply_custom_css()
 
 
 def calculate_days_elapsed(inoculation_date):
@@ -149,42 +154,48 @@ def main():
     # Display count
     st.markdown(f"**Showing {len(filtered_df)} of {len(df)} experiments**")
 
-    # Display experiments table
-    display_df = filtered_df[[
-        'id',
-        'experiment_name',
-        'substrate_type',
-        'status',
-        'container_type',
-        'inoculation_date',
-        'Days Elapsed'
-    ]].copy()
+    # Display experiments with icons
+    for idx, row in filtered_df.iterrows():
+        with st.container():
+            col1, col2, col3, col4 = st.columns([1, 4, 2, 2])
 
-    display_df.columns = [
-        'ID',
-        'Name',
-        'Substrate',
-        'Status',
-        'Container',
-        'Inoculation Date',
-        'Days Elapsed'
-    ]
+            with col1:
+                # Show status icon
+                status_icon = get_status_icon(row['status'])
+                try:
+                    st.image(status_icon, width=64)
+                except:
+                    st.write("🍄")
 
-    # Display table
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "ID": st.column_config.NumberColumn("ID", width="small"),
-            "Name": st.column_config.TextColumn("Name", width="medium"),
-            "Substrate": st.column_config.TextColumn("Substrate", width="medium"),
-            "Status": st.column_config.TextColumn("Status", width="small"),
-            "Container": st.column_config.TextColumn("Container", width="small"),
-            "Inoculation Date": st.column_config.DateColumn("Inoculation Date", width="medium"),
-            "Days Elapsed": st.column_config.NumberColumn("Days Elapsed", width="small")
-        }
-    )
+            with col2:
+                st.markdown(f"### {row['experiment_name']}")
+
+                # Show substrate icon inline
+                substrate_icon = get_substrate_icon(row['substrate_type'])
+                subcol1, subcol2 = st.columns([1, 10])
+                with subcol1:
+                    try:
+                        st.image(substrate_icon, width=24)
+                    except:
+                        pass
+                with subcol2:
+                    st.caption(f"{row['substrate_type'].title()} • {row['container_type']}")
+
+            with col3:
+                # Status badge with color
+                status_color = get_status_color(row['status'])
+                st.markdown(
+                    f"<div class='status-badge status-{row['status'].lower()}'>"
+                    f"{row['status'].title()}</div>",
+                    unsafe_allow_html=True
+                )
+
+            with col4:
+                days = row['Days Elapsed']
+                if days is not None:
+                    st.metric("Days", days)
+
+            st.divider()
 
     st.divider()
 
@@ -192,11 +203,11 @@ def main():
     st.subheader("🔍 Experiment Details & Management")
 
     # Select experiment by ID
-    experiment_ids = display_df['ID'].tolist()
+    experiment_ids = filtered_df['id'].tolist()
     selected_id = st.selectbox(
         "Select Experiment by ID",
         options=experiment_ids,
-        format_func=lambda x: f"ID {x} - {display_df[display_df['ID'] == x]['Name'].values[0]}"
+        format_func=lambda x: f"ID {x} - {filtered_df[filtered_df['id'] == x]['experiment_name'].values[0]}"
     )
 
     if selected_id:
