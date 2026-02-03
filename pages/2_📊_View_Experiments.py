@@ -5,7 +5,7 @@ Browse, filter, and manage mushroom cultivation experiments.
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime
 import sys
 from pathlib import Path
 
@@ -14,6 +14,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import database
 from assets import get_status_icon, get_substrate_icon
 from styles import apply_custom_css, get_status_color
+from utils.calculations import calculate_days_elapsed
 
 
 st.set_page_config(
@@ -24,21 +25,6 @@ st.set_page_config(
 
 # Apply custom styling
 apply_custom_css()
-
-
-def calculate_days_elapsed(inoculation_date):
-    """Calculate days elapsed since inoculation."""
-    if pd.isna(inoculation_date):
-        return None
-
-    if isinstance(inoculation_date, str):
-        inoculation_date = datetime.strptime(inoculation_date, "%Y-%m-%d").date()
-    elif isinstance(inoculation_date, datetime):
-        inoculation_date = inoculation_date.date()
-
-    today = date.today()
-    delta = today - inoculation_date
-    return delta.days
 
 
 def filter_experiments(df, status_filter, substrate_filter, search_term, date_range):

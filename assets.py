@@ -101,20 +101,3 @@ def verify_assets() -> dict:
     }
 
 
-def safe_image_display(st, image_path: str, width=None, fallback_emoji="🍄"):
-    """
-    Display image with emoji fallback if image missing.
-
-    Args:
-        st: Streamlit module reference
-        image_path: Path to image file
-        width: Optional width for image
-        fallback_emoji: Emoji to show if image not found
-    """
-    try:
-        if os.path.exists(image_path):
-            st.image(image_path, width=width)
-        else:
-            st.write(fallback_emoji)
-    except Exception as e:
-        st.write(fallback_emoji)

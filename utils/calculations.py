@@ -84,50 +84,6 @@ def format_date(date_string: Optional[str], format_str: str = "%Y-%m-%d") -> str
         return "N/A"
 
 
-def get_status_color(status: str) -> str:
-    """
-    Get color code for a given status.
-
-    Args:
-        status: Status string (inoculating, colonizing, etc.)
-
-    Returns:
-        str: Hex color code for the status
-    """
-    color_map = {
-        'inoculating': '#2196F3',   # Blue
-        'colonizing': '#FFC107',    # Yellow/Orange
-        'pinning': '#9C27B0',       # Purple
-        'fruiting': '#4CAF50',      # Green
-        'done': '#9E9E9E',          # Gray
-        'contaminated': '#F44336'   # Red
-    }
-
-    return color_map.get(status.lower(), '#000000')  # Default to black
-
-
-def get_status_background_color(status: str) -> str:
-    """
-    Get background color for a given status (lighter versions for styling).
-
-    Args:
-        status: Status string
-
-    Returns:
-        str: CSS background color string
-    """
-    background_colors = {
-        'inoculating': '#E3F2FD',   # Light blue
-        'colonizing': '#FFF3E0',    # Light orange
-        'pinning': '#F3E5F5',       # Light purple
-        'fruiting': '#E8F5E9',      # Light green
-        'done': '#F5F5F5',          # Light gray
-        'contaminated': '#FFEBEE'   # Light red
-    }
-
-    return background_colors.get(status.lower(), '#FFFFFF')  # Default to white
-
-
 def validate_date(date_input, allow_future: bool = False) -> Tuple[bool, str]:
     """
     Validate a date input.

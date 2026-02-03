@@ -4,11 +4,10 @@ Main application page with dashboard and statistics.
 """
 
 import streamlit as st
-import pandas as pd
-from datetime import datetime, date
 import database
 from assets import LOGO_HEADER, get_status_icon, verify_assets
 from styles import apply_custom_css
+from utils.calculations import calculate_days_elapsed
 
 
 # Page configuration
@@ -21,21 +20,6 @@ st.set_page_config(
 
 # Apply custom styling
 apply_custom_css()
-
-
-def calculate_days_since_inoculation(inoculation_date):
-    """Calculate days elapsed since inoculation date."""
-    if pd.isna(inoculation_date):
-        return None
-
-    if isinstance(inoculation_date, str):
-        inoculation_date = datetime.strptime(inoculation_date, "%Y-%m-%d").date()
-    elif isinstance(inoculation_date, datetime):
-        inoculation_date = inoculation_date.date()
-
-    today = date.today()
-    delta = today - inoculation_date
-    return delta.days
 
 
 def main():
@@ -127,7 +111,7 @@ def main():
                 st.caption(f"{row['substrate_type']} • {row['status'].title()}")
 
             with col3:
-                days = calculate_days_since_inoculation(row['inoculation_date'])
+                days = calculate_days_elapsed(row['inoculation_date'])
                 if days is not None:
                     st.metric("Days", days, label_visibility="collapsed")
 
