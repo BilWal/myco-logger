@@ -61,6 +61,20 @@ def init_database():
             )
         """)
 
+        # Create harvests table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS harvests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                experiment_id INTEGER NOT NULL,
+                flush_number INTEGER NOT NULL,
+                harvest_date DATE NOT NULL,
+                weight_grams REAL NOT NULL,
+                quality_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (experiment_id) REFERENCES experiments(id)
+            )
+        """)
+
         conn.commit()
 
     return True
@@ -233,9 +247,115 @@ def get_stats() -> Dict[str, Any]:
         else:
             success_rate = 0.0
 
+        # Total harvests
+        cursor.execute("SELECT COUNT(*) FROM harvests")
+        total_harvests = cursor.fetchone()[0]
+
     return {
         'total_count': total_count,
         'active_count': active_count,
         'contaminated_count': contaminated_count,
-        'success_rate': round(success_rate, 1)
+        'success_rate': round(success_rate, 1),
+        'total_harvests': total_harvests
     }
+
+
+# ---------------------------------------------------------------------------
+# Harvest functions
+# ---------------------------------------------------------------------------
+
+def add_harvest(**kwargs) -> int:
+    """
+    Add a new harvest record.
+
+    Required kwargs: experiment_id, flush_number, harvest_date, weight_grams
+    Optional kwargs: quality_notes
+
+    Returns:
+        int: ID of the newly created harvest
+    """
+    required = ['experiment_id', 'flush_number', 'harvest_date', 'weight_grams']
+    for field in required:
+        if field not in kwargs:
+            raise ValueError(f"Missing required field: {field}")
+
+    fields = list(kwargs.keys())
+    placeholders = ', '.join(['?' for _ in fields])
+    field_names = ', '.join(fields)
+    values = [kwargs[f] for f in fields]
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"INSERT INTO harvests ({field_names}) VALUES ({placeholders})",
+            values
+        )
+        harvest_id = cursor.lastrowid
+        conn.commit()
+
+    return harvest_id
+
+
+def get_harvests_by_experiment(experiment_id: int) -> pd.DataFrame:
+    """
+    Get all harvests for a given experiment, ordered by flush number.
+
+    Returns:
+        pd.DataFrame: Harvest records
+    """
+    with get_connection() as conn:
+        df = pd.read_sql_query(
+            "SELECT * FROM harvests WHERE experiment_id = ? ORDER BY flush_number ASC",
+            conn,
+            params=(experiment_id,)
+        )
+    return df
+
+
+def get_all_harvests() -> pd.DataFrame:
+    """
+    Get all harvest records joined with experiment names.
+
+    Returns:
+        pd.DataFrame: All harvests with experiment_name column
+    """
+    with get_connection() as conn:
+        df = pd.read_sql_query("""
+            SELECT h.*, e.experiment_name, e.substrate_type, e.substrate_weight_kg
+            FROM harvests h
+            JOIN experiments e ON h.experiment_id = e.id
+            ORDER BY h.harvest_date DESC
+        """, conn)
+    return df
+
+
+def get_total_harvest_weight(experiment_id: int) -> float:
+    """
+    Get total harvested weight in grams for an experiment.
+
+    Returns:
+        float: Total weight in grams (0.0 if no harvests)
+    """
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COALESCE(SUM(weight_grams), 0) FROM harvests WHERE experiment_id = ?",
+            (experiment_id,)
+        )
+        return cursor.fetchone()[0]
+
+
+def get_next_flush_number(experiment_id: int) -> int:
+    """
+    Get the next flush number for an experiment (max existing + 1, or 1).
+
+    Returns:
+        int: Suggested next flush number
+    """
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COALESCE(MAX(flush_number), 0) FROM harvests WHERE experiment_id = ?",
+            (experiment_id,)
+        )
+        return cursor.fetchone()[0] + 1

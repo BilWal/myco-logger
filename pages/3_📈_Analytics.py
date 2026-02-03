@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import database
 from assets import get_status_icon, get_substrate_icon
 from styles import apply_custom_css, COLORS
+from utils.calculations import calculate_biological_efficiency
 
 
 st.set_page_config(
@@ -312,6 +313,109 @@ def main():
         st.plotly_chart(fig_timeline, use_container_width=True)
     else:
         st.info("No timeline data available")
+
+    st.divider()
+
+    # === Chart 5: Biological Efficiency by Experiment ===
+    st.subheader("🌾 Biological Efficiency by Experiment")
+
+    harvests_df = database.get_all_harvests()
+
+    # Respect sidebar filters — only include harvests for experiments in filtered_df
+    if not harvests_df.empty:
+        harvests_df = harvests_df[harvests_df['experiment_id'].isin(filtered_df['id'])]
+
+    if not harvests_df.empty:
+        # Aggregate total harvest weight per experiment, then compute BE
+        be_data = harvests_df.groupby(['experiment_id', 'experiment_name', 'substrate_weight_kg']).agg(
+            total_grams=('weight_grams', 'sum')
+        ).reset_index()
+        be_data = be_data[be_data['substrate_weight_kg'].notna() & (be_data['substrate_weight_kg'] > 0)]
+        be_data['BE (%)'] = be_data.apply(
+            lambda row: calculate_biological_efficiency(row['total_grams'], row['substrate_weight_kg']),
+            axis=1
+        )
+        be_data = be_data[be_data['BE (%)'].notna()].sort_values('BE (%)', ascending=False)
+
+        if not be_data.empty:
+            fig_be = go.Figure()
+
+            fig_be.add_trace(go.Bar(
+                x=be_data['experiment_name'],
+                y=be_data['BE (%)'],
+                text=[f"{be:.1f}%" for be in be_data['BE (%)']],
+                textposition='outside',
+                marker_color=[COLORS['success_green'] if be >= 75 else COLORS['terracotta']
+                              for be in be_data['BE (%)']],
+            ))
+
+            fig_be.add_hline(y=75, line_dash="dash", line_color=COLORS['sage_green'],
+                             annotation_text="Target: 75%")
+
+            fig_be.update_layout(
+                title='Biological Efficiency by Experiment',
+                showlegend=False,
+                xaxis_title='Experiment',
+                yaxis_title='BE (%)',
+                plot_bgcolor=COLORS['off_white'],
+                paper_bgcolor=COLORS['cream'],
+                font_color=COLORS['dark_brown'],
+            )
+
+            st.plotly_chart(fig_be, use_container_width=True)
+        else:
+            st.info("Set substrate weight on experiments to enable BE calculations.")
+    else:
+        st.info("No harvests recorded yet. Log harvests on the '🌾 Add Harvest' page to see this chart.")
+
+    st.divider()
+
+    # === Chart 6: Harvest Yield Over Time ===
+    st.subheader("📅 Harvest Yield Over Time")
+
+    if not harvests_df.empty:
+        harvests_df['harvest_date_dt'] = pd.to_datetime(harvests_df['harvest_date'])
+        yield_by_date = (
+            harvests_df.sort_values('harvest_date_dt')
+            .groupby('harvest_date_dt')['weight_grams']
+            .sum()
+            .reset_index()
+        )
+        yield_by_date.columns = ['Date', 'Harvested (g)']
+        yield_by_date['Cumulative (g)'] = yield_by_date['Harvested (g)'].cumsum()
+
+        fig_yield = go.Figure()
+
+        fig_yield.add_trace(go.Bar(
+            x=yield_by_date['Date'],
+            y=yield_by_date['Harvested (g)'],
+            name='Per-Flush Yield',
+            marker_color=COLORS['terracotta'],
+            opacity=0.6
+        ))
+
+        fig_yield.add_trace(go.Scatter(
+            x=yield_by_date['Date'],
+            y=yield_by_date['Cumulative (g)'],
+            mode='lines+markers',
+            name='Cumulative Yield',
+            line=dict(color=COLORS['sage_green'], width=3),
+            marker=dict(size=8, color=COLORS['terracotta'])
+        ))
+
+        fig_yield.update_layout(
+            title='Harvest Yield Over Time',
+            xaxis_title='Date',
+            yaxis_title='Weight (g)',
+            hovermode='x unified',
+            plot_bgcolor=COLORS['off_white'],
+            paper_bgcolor=COLORS['cream'],
+            font_color=COLORS['dark_brown'],
+        )
+
+        st.plotly_chart(fig_yield, use_container_width=True)
+    else:
+        st.info("No harvests recorded yet. Log harvests on the '🌾 Add Harvest' page to see this chart.")
 
     st.divider()
 
